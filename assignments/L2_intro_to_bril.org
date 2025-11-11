@@ -1,0 +1,4 @@
+#+title: Lession 2: Introduction to Bril
+
+* Task
+Your task for lesson two is to load up Bril programs and write some code that does something to them. It doesn't have to be that interesting. And in fact, it should be somewhat unambitious. It's just to get you sort of familiar with the Bril ecosystem and to understand what it's like to process these programs
