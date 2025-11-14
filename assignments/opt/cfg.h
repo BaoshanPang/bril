@@ -38,6 +38,10 @@ public:
     func["instrs"] = blst.to_json();
     return func;
   }
+  void get_uses(set<string> &uses) {
+    blst.get_uses(uses);
+  }
+  void dce();
   void dump() { blst.dump(); }
 };
 

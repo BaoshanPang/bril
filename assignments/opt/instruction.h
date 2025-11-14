@@ -4,6 +4,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
+#include <set>
 
 using namespace std;
 using json = nlohmann::json;
@@ -20,13 +21,29 @@ public:
     prev = next = nullptr;
   }
   json get_data() { return data; }
-  void dump() { cout << data << endl; }
   instruction *get_next() { return next; }
   void set_next(instruction *inst) { next = inst; }
   bool is_label() { return data.contains("label"); }
   bool is_terminator() {
     return data.contains("op") &&
       (data["op"] == "br" || data["op"] == "jmp");
+  }
+  void get_uses(set<string> &uses) {
+    if (data.contains("args")) {
+      for (auto a : data["args"]) {
+        uses.insert(a);
+      }
+    }
+  }
+  bool is_dead(const set<string> &uses) {
+    if (is_label())
+      return false;
+    if(data.contains("dest"))
+      return uses.count(data["dest"]) == 0;
+    return false;
+  }
+  void dump() {
+    cout << data << endl;
   }
 };
 
@@ -48,6 +65,32 @@ public:
     count++;
   }
   size_t get_count() { return count;}
+  void get_uses(set<string> &uses) {
+     instruction *i = head;
+     while (i != nullptr) {
+      i->get_uses(uses);
+      i = i->get_next();
+    }
+  }
+
+  void remove_dead_instructions(const set<string> &uses) {
+    instruction *i = head;
+    instruction *prev = head;
+    while (i != nullptr) {
+      if (i->is_dead(uses)) {
+        if (i == head) {
+          i = head = head->get_next();
+        } else {
+          i = i->get_next();
+          prev->set_next(i);
+        }
+      } else {
+        prev = i;
+        i = i->get_next();
+      }
+    }
+  }
+
   json to_json() {
     instruction *i = head;
     json insts = json::array();
