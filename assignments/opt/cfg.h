@@ -42,6 +42,7 @@ public:
     blst.get_uses(uses);
   }
   void dce();
+  void dce_reassign() { blst.dce_reassign(); }
   void dump() { blst.dump(); }
 };
 

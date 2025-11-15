@@ -32,6 +32,10 @@ test:
 	$(foreach exec,$(EXECUTABLES), $(if $(shell which $(exec)),,$(error "No $(exec) in PATH: Either refer to the documentation for their installation instructions or run a subset of the tests manually with `turnt test/interp*/**/*.bril`")))
 	turnt $(TURNTARGS) $(TESTS)
 
+test_opt:
+	$(foreach exec,$(EXECUTABLES), $(if $(shell which $(exec)),,$(error "No $(exec) in PATH: Either refer to the documentation for their installation instructions or run a subset of the tests manually with `turnt test/interp*/**/*.bril`")))
+	turnt $(TURNTARGS) examples/test/tdce_opt/*.bril
+
 .PHONY: check
 check:
 	for fn in $(CHECKS) ; do \

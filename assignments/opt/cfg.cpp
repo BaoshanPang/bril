@@ -2,7 +2,10 @@
 #include <set>
 
 void cfg::dce() {
-  set<string> uses;
-  blst.get_uses(uses);
-  blst.remove_dead_instructions(uses);
+  bool changed = false;
+  do {
+    set<string> uses;
+    blst.get_uses(uses);
+    changed = blst.remove_dead_instructions(uses);
+  } while(changed);
 }

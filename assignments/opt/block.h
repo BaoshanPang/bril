@@ -16,8 +16,11 @@ public:
   block* get_next() { return next; }
   size_t get_count() { return ilst.get_count(); }
   void get_uses(set<string> &uses) { ilst.get_uses(uses); }
-  void remove_dead_instructions(const set<string> &uses) {
-    ilst.remove_dead_instructions(uses);
+  bool remove_dead_instructions(const set<string> &uses) {
+    return ilst.remove_dead_instructions(uses);
+  }
+  void remove_dead_assign() {
+    ilst.remove_dead_assign();
   }
   json to_json() {
     return ilst.to_json();
@@ -52,10 +55,21 @@ public:
     }
   }
 
-  void remove_dead_instructions(const set<string> &uses) {
+  bool remove_dead_instructions(const set<string> &uses) {
+     bool changed = false;
      block *b = head;
      while (b != nullptr) {
-      b->remove_dead_instructions(uses);
+       if (b->remove_dead_instructions(uses))
+         changed = true;
+      b = b->get_next();
+     }
+     return changed;
+  }
+
+  void dce_reassign() {
+     block *b = head;
+     while (b != nullptr) {
+      b->remove_dead_assign();
       b = b->get_next();
     }
   }

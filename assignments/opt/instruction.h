@@ -21,7 +21,10 @@ public:
     prev = next = nullptr;
   }
   json get_data() { return data; }
+  instruction *get_prev() { return prev; }
   instruction *get_next() { return next; }
+  void _next(instruction *inst) { next = inst; }
+  void set_prev(instruction *inst) { prev = inst; }
   void set_next(instruction *inst) { next = inst; }
   bool is_label() { return data.contains("label"); }
   bool is_terminator() {
@@ -34,6 +37,12 @@ public:
         uses.insert(a);
       }
     }
+  }
+  string get_def() {
+    if (data.contains("dest"))
+      return data["dest"];
+    else
+      return "";
   }
   bool is_dead(const set<string> &uses) {
     if (is_label())
@@ -60,6 +69,7 @@ public:
       head = tail = inst;
     } else {
       tail->set_next(inst);
+      inst->set_prev(tail);
       tail = inst;
     }
     count++;
@@ -73,7 +83,8 @@ public:
     }
   }
 
-  void remove_dead_instructions(const set<string> &uses) {
+  bool remove_dead_instructions(const set<string> &uses) {
+    bool changed = false;
     instruction *i = head;
     instruction *prev = head;
     while (i != nullptr) {
@@ -84,10 +95,46 @@ public:
           i = i->get_next();
           prev->set_next(i);
         }
+        changed = true;
       } else {
         prev = i;
         i = i->get_next();
       }
+    }
+    return changed;
+  }
+
+  void unlink(instruction *inst) {
+    if (head == inst) {
+      head = inst->get_next();
+    } else {
+      instruction *ip = inst->get_prev();
+      instruction *in = inst->get_next();
+
+      ip->set_next(in);
+      in->set_prev(ip);
+    }
+  }
+
+  void remove_dead_assign() {
+    map<string, instruction *> d2i;
+    set<string> uses;
+    vector<instruction *> dead;
+    instruction *i = head;
+    while (i != nullptr) {
+      i->get_uses(uses);
+      string dest = i->get_def();
+      if (dest != "") {
+        if (uses.count(dest) == 0 && d2i.find(dest) != d2i.end()) {
+          dead.push_back(d2i[dest]);
+        }
+        d2i[dest] = i;
+        uses.erase(dest);
+      }
+      i = i->get_next();
+    }
+    for (auto &d : dead) {
+      unlink(d);
     }
   }
 
