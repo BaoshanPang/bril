@@ -43,6 +43,9 @@ public:
   }
   void dce();
   void dce_reassign() { blst.dce_reassign(); }
+  void lvn() {
+    blst.lvn();
+  }
   void dump() { blst.dump(); }
 };
 

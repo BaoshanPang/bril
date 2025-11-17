@@ -8,7 +8,8 @@ private:
   block *prev;
   block *next;
   vector<block*> preds;
-  vector<block*> succs;
+  vector<block *> succs;
+
 public:
   block() { prev = next = nullptr; }
   void append(instruction *inst) { ilst.append(inst);}
@@ -19,9 +20,15 @@ public:
   bool remove_dead_instructions(const set<string> &uses) {
     return ilst.remove_dead_instructions(uses);
   }
-  void remove_dead_assign() {
-    ilst.remove_dead_assign();
+  void remove_dead_assign() { ilst.remove_dead_assign(); }
+
+  void lvn() { ilst.lvn(); }
+
+  void dump_lvn() {
+    cout << "block: " << endl;
+    ilst.dump_lvn();
   }
+
   json to_json() {
     return ilst.to_json();
   }
@@ -70,6 +77,14 @@ public:
      block *b = head;
      while (b != nullptr) {
       b->remove_dead_assign();
+      b = b->get_next();
+    }
+  }
+
+  void lvn() {
+    block *b = head;
+    while (b != nullptr) {
+      b->lvn();
       b = b->get_next();
     }
   }

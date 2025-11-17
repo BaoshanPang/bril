@@ -1,7 +1,7 @@
 SOURCES = opt.cpp cfg.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
-CXXFLAGS = -g -MMD -MP
+CXXFLAGS = -g -MMD -MP -DLVN
 
 test: simple reassign
 

@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <unordered_map>
 
 using namespace std;
 using json = nlohmann::json;
@@ -44,6 +45,27 @@ public:
     else
       return "";
   }
+  void update_def(string dest) {
+   data["dest"] = dest;
+  }
+  string get_op() {
+    if (data.contains("op"))
+      return data["op"];
+    else
+      return "";
+  }
+  bool has_args() {
+    return data.contains("args");
+  }
+  vector<string> get_args() {
+    vector<string> args;
+    if (data.contains("args")) {
+      for (auto a : data["args"]) {
+        args.push_back(a);
+      }
+    }
+    return args;
+  }
   bool is_dead(const set<string> &uses) {
     if (is_label())
       return false;
@@ -51,6 +73,25 @@ public:
       return uses.count(data["dest"]) == 0;
     return false;
   }
+  void update_to_copy(string id) {
+    if (data["op"] == "add" || data["op"] == "mul") {
+      data["op"] = "id";
+      data["args"].clear();
+      data["args"].push_back(id);
+    } else if (data["op"] == "const") {
+      data["op"] = "id";
+      data["args"].clear();
+      data["args"].push_back(id);
+      data.erase("value");
+    } else {
+      // TODO
+      dump();
+      assert(0);
+    }
+  }
+  void update_args(json args) { data["args"] = args; }
+
+  __attribute__((noinline))
   void dump() {
     cout << data << endl;
   }
@@ -61,6 +102,11 @@ private:
   instruction *head;
   instruction *tail;
   size_t count;
+  typedef tuple<string, vector<int>> op_with_args;
+  // value number
+  map<op_with_args, int> value2num;
+  vector<string> vars;
+  map<string, int> var2num;
 
 public:
   inst_list() { head = tail = nullptr; count = 0; }
@@ -136,6 +182,98 @@ public:
     for (auto &d : dead) {
       unlink(d);
     }
+  }
+
+  void get_redefs(set<instruction *> &redefs) {
+    instruction *i = head;
+    unordered_map<string, instruction *> v2i;
+    while (i != nullptr) {
+      string dest = i->get_def();
+      if (dest != "") {
+        if (v2i.find(dest) != v2i.end()) {
+          redefs.insert(v2i[dest]);
+        }
+        v2i[dest] = i;
+      }
+      i = i->get_next();
+    }
+    return;
+  }
+
+  void lvn() {
+    set<instruction *> redefs;
+    get_redefs(redefs);
+    string lvn = "lvn.";
+    int cnt = 0;
+
+    instruction *i = head;
+    while (i != nullptr) {
+      string dest = i->get_def();
+      string op = i->get_op();
+      vector<string> args = i->get_args();
+      vector<int> iargs;
+      if (op == "const") {
+        int v = i->get_data()["value"];
+        iargs.push_back(v);
+      } else {
+        for (auto a : args) {
+          if (var2num.find(a) == var2num.end()) {
+            vars.push_back(a);
+            var2num[a] = vars.size() - 1;
+          }
+          iargs.push_back(var2num[a]);
+        }
+      }
+      op_with_args owa(op, iargs);
+      if (value2num.find(owa) != value2num.end()) {
+        i->update_to_copy(vars[value2num[owa]]);
+        if(dest != "")
+          var2num[dest] = value2num[owa];
+      } else {
+        if (dest != "") {
+          if (redefs.count(i) != 0) {
+            string new_dest = lvn + to_string(redefs.size());
+            redefs.erase(i);
+            i->update_def(new_dest);
+            vars.push_back(new_dest);
+            var2num[new_dest] = vars.size() - 1;
+          } else
+            vars.push_back(dest);
+          value2num[owa] = vars.size() - 1;
+          var2num[dest] = vars.size() - 1;
+        }
+        if(i->has_args()) {
+          json new_args;
+          for (auto a : args) {
+            new_args.push_back(vars[var2num[a]]);
+          }
+          i->update_args(new_args);
+        }
+      }
+      i = i->get_next();
+    }
+  }
+
+  void dump_lvn() {
+    cout << "vars: " << endl;
+    for(int i = 0; i < vars.size(); ++i)
+      cout << (i == 0 ? "" : ",") << vars[i];
+    cout << endl;
+
+    cout << "var2num: " << endl;
+    for (auto &[v, n] : var2num) {
+      cout << v << " : " << n << endl;
+    }
+
+    cout << "value2num: " << endl;
+    for (auto &[value, n] : value2num) {
+      cout << get<0>(value) << " ";
+      for (auto i : get<1>(value)) {
+        cout << i << " ";
+      }
+      cout << " : " << n << endl;
+    }
+    return;
   }
 
   json to_json() {
