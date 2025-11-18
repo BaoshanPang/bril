@@ -1,0 +1,1 @@
+command = "bril2json < {filename} | ../../../assignments/opt/opt {args} | bril2txt"

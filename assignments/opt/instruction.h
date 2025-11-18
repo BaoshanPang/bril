@@ -223,6 +223,7 @@ public:
           }
           iargs.push_back(var2num[a]);
         }
+        sort(iargs.begin(), iargs.end());
       }
       op_with_args owa(op, iargs);
       if (value2num.find(owa) != value2num.end()) {
