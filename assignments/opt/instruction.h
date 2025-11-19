@@ -102,9 +102,9 @@ private:
   instruction *head;
   instruction *tail;
   size_t count;
-  typedef tuple<string, vector<int>> op_with_args;
+  typedef tuple<string, vector<int>> value;
   // value number
-  map<op_with_args, int> value2num;
+  map<value, int> value2num;
   vector<string> vars;
   map<string, int> var2num;
 
@@ -200,20 +200,13 @@ public:
     return;
   }
 
-  void lvn() {
-    set<instruction *> redefs;
-    get_redefs(redefs);
-    string lvn = "lvn.";
-    int cnt = 0;
-
-    instruction *i = head;
-    while (i != nullptr) {
-      string dest = i->get_def();
-      string op = i->get_op();
-      vector<string> args = i->get_args();
+  value get_value(instruction *inst) {
+      string dest = inst->get_def();
+      string op = inst->get_op();
+      vector<string> args = inst->get_args();
       vector<int> iargs;
       if (op == "const") {
-        int v = i->get_data()["value"];
+        int v = inst->get_data()["value"];
         iargs.push_back(v);
       } else {
         for (auto a : args) {
@@ -225,12 +218,41 @@ public:
         }
         sort(iargs.begin(), iargs.end());
       }
-      op_with_args owa(op, iargs);
-      if (value2num.find(owa) != value2num.end()) {
-        i->update_to_copy(vars[value2num[owa]]);
+      value owa(op, iargs);
+      return owa;
+  }
+
+  void get_killed(set<string> &killed) {
+    instruction *i = head;
+    while (i != nullptr) {
+      string def = i->get_def();
+      if (def != "")
+        killed.insert(def);
+      i = i->get_next();
+    }
+  }
+
+  void lvn() {
+    set<instruction *> redefs;
+    get_redefs(redefs);
+    string lvn = "lvn.";
+
+    set<string> killed;
+    get_killed(killed);
+
+
+    instruction *i = head;
+    while (i != nullptr) {
+      value v = get_value(i);
+
+      string dest = i->get_def();
+      if (value2num.find(v) != value2num.end()) {
+        i->update_to_copy(vars[value2num[v]]);
         if(dest != "")
-          var2num[dest] = value2num[owa];
+          var2num[dest] = value2num[v];
       } else {
+        string op = i->get_op();
+        vector<string> args = i->get_args();
         if (dest != "") {
           if (redefs.count(i) != 0) {
             string new_dest = lvn + to_string(redefs.size());
@@ -238,12 +260,26 @@ public:
             i->update_def(new_dest);
             vars.push_back(new_dest);
             var2num[new_dest] = vars.size() - 1;
-          } else
-            vars.push_back(dest);
-          value2num[owa] = vars.size() - 1;
-          var2num[dest] = vars.size() - 1;
+            value2num[v] = vars.size() - 1;
+            var2num[dest] = vars.size() - 1;
+          } else {
+            if (op == "id" && killed.count(args[0]) == 0) {
+              if (var2num.find(args[0]) == var2num.end()) {
+                vars.push_back(args[0]);
+                value2num[v] = vars.size() - 1;
+                var2num[dest] = vars.size() - 1;
+              } else {
+                var2num[dest] = var2num[args[0]];
+              }
+            }
+            else {
+              vars.push_back(dest);
+              value2num[v] = vars.size() - 1;
+              var2num[dest] = vars.size() - 1;
+            }
+          }
         }
-        if(i->has_args()) {
+        if(args.size()) {
           json new_args;
           for (auto a : args) {
             new_args.push_back(vars[var2num[a]]);
