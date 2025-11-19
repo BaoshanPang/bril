@@ -232,103 +232,112 @@ public:
     }
   }
 
-  void lvn() {
-    set<instruction *> redefs;
-    get_redefs(redefs);
-    string lvn = "lvn.";
-
-    set<string> killed;
-    get_killed(killed);
-
-
-    instruction *i = head;
-    while (i != nullptr) {
-      value v = get_value(i);
-
-      string dest = i->get_def();
-      if (value2num.find(v) != value2num.end()) {
-        i->update_to_copy(vars[value2num[v]]);
-        if(dest != "")
-          var2num[dest] = value2num[v];
+  void erase_by_value(map<string, string> &alias, string name) {
+    for (auto it = alias.begin(); it != alias.end();) {
+      if (it->second == name) {
+        it = alias.erase(it); // erase returns next valid iterator
       } else {
-        string op = i->get_op();
-        vector<string> args = i->get_args();
-        if (dest != "") {
-          if (redefs.count(i) != 0) {
-            string new_dest = lvn + to_string(redefs.size());
-            redefs.erase(i);
-            i->update_def(new_dest);
-            vars.push_back(new_dest);
-            var2num[new_dest] = vars.size() - 1;
-            value2num[v] = vars.size() - 1;
-            var2num[dest] = vars.size() - 1;
-          } else {
-            if (op == "id" && killed.count(args[0]) == 0) {
-              if (var2num.find(args[0]) == var2num.end()) {
-                vars.push_back(args[0]);
-                value2num[v] = vars.size() - 1;
-                var2num[dest] = vars.size() - 1;
-              } else {
-                var2num[dest] = var2num[args[0]];
+        ++it;
+      }
+    }
+  }
+
+    void lvn() {
+      set<instruction *> redefs;
+      get_redefs(redefs);
+      string lvn = "lvn.";
+
+      map<string, string> alias;
+
+      instruction *i = head;
+      while (i != nullptr) {
+        value v = get_value(i);
+
+        string dest = i->get_def();
+        if (value2num.find(v) != value2num.end()) {
+          i->update_to_copy(vars[value2num[v]]);
+          if (dest != "")
+            var2num[dest] = value2num[v];
+        } else {
+          string op = i->get_op();
+          vector<string> args = i->get_args();
+          if (dest != "") {
+            if (redefs.count(i) != 0) {
+              string new_dest = lvn + to_string(redefs.size());
+              redefs.erase(i);
+              i->update_def(new_dest);
+              vars.push_back(new_dest);
+              var2num[new_dest] = vars.size() - 1;
+              value2num[v] = vars.size() - 1;
+              var2num[dest] = vars.size() - 1;
+            } else {
+              if (op == "id") {
+                string a = args[0];
+                while (alias.find(a) != alias.end())
+                  a = alias[a];
+                alias[dest] = a;
               }
-            }
-            else {
+              erase_by_value(alias, dest);
+
               vars.push_back(dest);
               value2num[v] = vars.size() - 1;
               var2num[dest] = vars.size() - 1;
             }
           }
-        }
-        if(args.size()) {
-          json new_args;
-          for (auto a : args) {
-            new_args.push_back(vars[var2num[a]]);
+          if (args.size()) {
+            json new_args;
+            for (auto a : args) {
+              string v = vars[var2num[a]];
+              if (alias.find(v) != alias.end())
+                new_args.push_back(alias[v]);
+              else
+                new_args.push_back(v);
+            }
+            i->update_args(new_args);
           }
-          i->update_args(new_args);
         }
+        i = i->get_next();
       }
-      i = i->get_next();
-    }
-  }
-
-  void dump_lvn() {
-    cout << "vars: " << endl;
-    for(int i = 0; i < vars.size(); ++i)
-      cout << (i == 0 ? "" : ",") << vars[i];
-    cout << endl;
-
-    cout << "var2num: " << endl;
-    for (auto &[v, n] : var2num) {
-      cout << v << " : " << n << endl;
     }
 
-    cout << "value2num: " << endl;
-    for (auto &[value, n] : value2num) {
-      cout << get<0>(value) << " ";
-      for (auto i : get<1>(value)) {
-        cout << i << " ";
+    void dump_lvn() {
+      cout << "vars: " << endl;
+      for (int i = 0; i < vars.size(); ++i)
+        cout << (i == 0 ? "" : ",") << vars[i];
+      cout << endl;
+
+      cout << "var2num: " << endl;
+      for (auto &[v, n] : var2num) {
+        cout << v << " : " << n << endl;
       }
-      cout << " : " << n << endl;
-    }
-    return;
-  }
 
-  json to_json() {
-    instruction *i = head;
-    json insts = json::array();
-    while (i != nullptr) {
-      insts.push_back(i->get_data());
-      i = i->get_next();
+      cout << "value2num: " << endl;
+      for (auto &[value, n] : value2num) {
+        cout << get<0>(value) << " ";
+        for (auto i : get<1>(value)) {
+          cout << i << " ";
+        }
+        cout << " : " << n << endl;
+      }
+      return;
     }
-    return insts;
-  }
-  void dump() {
-    instruction *i = head;
-    while (i != nullptr) {
-      i->dump();
-      i = i->get_next();
+
+    json to_json() {
+      instruction *i = head;
+      json insts = json::array();
+      while (i != nullptr) {
+        insts.push_back(i->get_data());
+        i = i->get_next();
+      }
+      return insts;
     }
-  }
-};
+    void dump() {
+      instruction *i = head;
+      while (i != nullptr) {
+        i->dump();
+        i = i->get_next();
+      }
+    }
+  };
 
 #endif // INSTRUCTION_H_
