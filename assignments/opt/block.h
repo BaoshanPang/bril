@@ -13,8 +13,8 @@ private:
   inst_list ilst;
   block *prev;
   block *next;
-  vector<block*> preds;
-  vector<block *> succs;
+  set<block*> preds;
+  set<block *> succs;
 
 public:
   block() { prev = next = nullptr; }
@@ -27,21 +27,25 @@ public:
   block* get_next() { return next; }
   size_t get_count() { return ilst.get_count(); }
   void get_uses(set<string> &uses) { ilst.get_uses(uses); }
-  vector<block *>* get_succs() { return &succs; }
+  void set_pred(block *p) {
+    preds.insert(p);
+  }
+  set<block *>* get_preds() { return &preds; }
+  set<block *>* get_succs() { return &succs; }
   void set_succs(name2block_map &n2b, block *n) {
     instruction *last = ilst.get_last_inst();
     if (last->is_jmp()) {
       string dest = last->get_labels()[0];
-      succs.push_back(n2b[dest]);
+      succs.insert(n2b[dest]);
     } else {
       if(n)
-        succs.push_back(n);
+        succs.insert(n);
       if (last->is_branch()) {
         json dests = last->get_labels();
         for (auto d : dests) {
           block *b = n2b[d];
           if(b != n)
-            succs.push_back(b);
+            succs.insert(b);
         }
       }
     }
@@ -105,6 +109,9 @@ public:
     block *b = head;
     while (b != nullptr) {
       b->set_succs(n2b, b->get_next());
+      for (auto &s : *b->get_succs()) {
+        s->set_pred(b);
+      }
       b = b->get_next();
     }
   }
@@ -121,7 +128,7 @@ public:
     block *b = head;
     while (b != nullptr) {
       string n = b->get_name();
-      vector<block *> *ss = b->get_succs();
+      set<block *> *ss = b->get_succs();
       for (auto &s : *ss) {
         os << b->get_name() << deli << s->get_name() << endl;
       }
