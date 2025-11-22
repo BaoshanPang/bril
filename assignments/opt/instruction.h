@@ -28,6 +28,10 @@ public:
   void set_prev(instruction *inst) { prev = inst; }
   void set_next(instruction *inst) { next = inst; }
   bool is_label() { return data.contains("label"); }
+  bool is_jmp() { return data.contains("op") && data["op"] == "jmp"; }
+  bool is_branch() { return data.contains("op") && data["op"] == "br"; }
+  string get_label() { return data["label"]; }
+  json get_labels() { return data["labels"]; }
   bool is_terminator() {
     return data.contains("op") &&
       (data["op"] == "br" || data["op"] == "jmp");
@@ -110,6 +114,7 @@ private:
 
 public:
   inst_list() { head = tail = nullptr; count = 0; }
+  instruction * get_last_inst() { return tail; }
   void append(instruction *inst) {
     if (head == nullptr) {
       head = tail = inst;
