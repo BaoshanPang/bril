@@ -2,13 +2,16 @@
 #define INSTRUCTION_H_
 #include <iostream>
 #include <nlohmann/json.hpp>
-#include <string>
-#include <vector>
 #include <set>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 using namespace std;
 using json = nlohmann::json;
+
+class instruction;
+typedef map<string, set<instruction *>> var2instset;
 
 class instruction {
 private:
@@ -33,8 +36,7 @@ public:
   string get_label() { return data["label"]; }
   json get_labels() { return data["labels"]; }
   bool is_terminator() {
-    return data.contains("op") &&
-      (data["op"] == "br" || data["op"] == "jmp");
+    return data.contains("op") && (data["op"] == "br" || data["op"] == "jmp");
   }
   void get_uses(set<string> &uses) {
     if (data.contains("args")) {
@@ -49,18 +51,14 @@ public:
     else
       return "";
   }
-  void update_def(string dest) {
-   data["dest"] = dest;
-  }
+  void update_def(string dest) { data["dest"] = dest; }
   string get_op() {
     if (data.contains("op"))
       return data["op"];
     else
       return "";
   }
-  bool has_args() {
-    return data.contains("args");
-  }
+  bool has_args() { return data.contains("args"); }
   vector<string> get_args() {
     vector<string> args;
     if (data.contains("args")) {
@@ -73,7 +71,7 @@ public:
   bool is_dead(const set<string> &uses) {
     if (is_label())
       return false;
-    if(data.contains("dest"))
+    if (data.contains("dest"))
       return uses.count(data["dest"]) == 0;
     return false;
   }
@@ -95,10 +93,7 @@ public:
   }
   void update_args(json args) { data["args"] = args; }
 
-  __attribute__((noinline))
-  void dump() {
-    cout << data << endl;
-  }
+  __attribute__((noinline)) void dump() { cout << data << endl; }
 };
 
 class inst_list {
@@ -113,8 +108,11 @@ private:
   map<string, int> var2num;
 
 public:
-  inst_list() { head = tail = nullptr; count = 0; }
-  instruction * get_last_inst() { return tail; }
+  inst_list() {
+    head = tail = nullptr;
+    count = 0;
+  }
+  instruction *get_last_inst() { return tail; }
   void append(instruction *inst) {
     if (head == nullptr) {
       head = tail = inst;
@@ -125,10 +123,10 @@ public:
     }
     count++;
   }
-  size_t get_count() { return count;}
+  size_t get_count() { return count; }
   void get_uses(set<string> &uses) {
-     instruction *i = head;
-     while (i != nullptr) {
+    instruction *i = head;
+    while (i != nullptr) {
       i->get_uses(uses);
       i = i->get_next();
     }
@@ -206,25 +204,25 @@ public:
   }
 
   value get_value(instruction *inst) {
-      string dest = inst->get_def();
-      string op = inst->get_op();
-      vector<string> args = inst->get_args();
-      vector<int> iargs;
-      if (op == "const") {
-        int v = inst->get_data()["value"];
-        iargs.push_back(v);
-      } else {
-        for (auto a : args) {
-          if (var2num.find(a) == var2num.end()) {
-            vars.push_back(a);
-            var2num[a] = vars.size() - 1;
-          }
-          iargs.push_back(var2num[a]);
+    string dest = inst->get_def();
+    string op = inst->get_op();
+    vector<string> args = inst->get_args();
+    vector<int> iargs;
+    if (op == "const") {
+      int v = inst->get_data()["value"];
+      iargs.push_back(v);
+    } else {
+      for (auto a : args) {
+        if (var2num.find(a) == var2num.end()) {
+          vars.push_back(a);
+          var2num[a] = vars.size() - 1;
         }
-        sort(iargs.begin(), iargs.end());
+        iargs.push_back(var2num[a]);
       }
-      value owa(op, iargs);
-      return owa;
+      sort(iargs.begin(), iargs.end());
+    }
+    value owa(op, iargs);
+    return owa;
   }
 
   void get_killed(set<string> &killed) {
@@ -247,102 +245,115 @@ public:
     }
   }
 
-    void lvn() {
-      set<instruction *> redefs;
-      get_redefs(redefs);
-      string lvn = "lvn.";
+  void lvn() {
+    set<instruction *> redefs;
+    get_redefs(redefs);
+    string lvn = "lvn.";
 
-      map<string, string> alias;
+    map<string, string> alias;
 
-      instruction *i = head;
-      while (i != nullptr) {
-        value v = get_value(i);
+    instruction *i = head;
+    while (i != nullptr) {
+      value v = get_value(i);
 
-        string dest = i->get_def();
-        if (value2num.find(v) != value2num.end()) {
-          i->update_to_copy(vars[value2num[v]]);
-          if (dest != "")
-            var2num[dest] = value2num[v];
-        } else {
-          string op = i->get_op();
-          vector<string> args = i->get_args();
-          if (dest != "") {
-            if (redefs.count(i) != 0) {
-              string new_dest = lvn + to_string(redefs.size());
-              redefs.erase(i);
-              i->update_def(new_dest);
-              vars.push_back(new_dest);
-              var2num[new_dest] = vars.size() - 1;
-              value2num[v] = vars.size() - 1;
-              var2num[dest] = vars.size() - 1;
-            } else {
-              if (op == "id") {
-                string a = args[0];
-                while (alias.find(a) != alias.end())
-                  a = alias[a];
-                alias[dest] = a;
-              }
-              erase_by_value(alias, dest);
-
-              vars.push_back(dest);
-              value2num[v] = vars.size() - 1;
-              var2num[dest] = vars.size() - 1;
+      string dest = i->get_def();
+      if (value2num.find(v) != value2num.end()) {
+        i->update_to_copy(vars[value2num[v]]);
+        if (dest != "")
+          var2num[dest] = value2num[v];
+      } else {
+        string op = i->get_op();
+        vector<string> args = i->get_args();
+        if (dest != "") {
+          if (redefs.count(i) != 0) {
+            string new_dest = lvn + to_string(redefs.size());
+            redefs.erase(i);
+            i->update_def(new_dest);
+            vars.push_back(new_dest);
+            var2num[new_dest] = vars.size() - 1;
+            value2num[v] = vars.size() - 1;
+            var2num[dest] = vars.size() - 1;
+          } else {
+            if (op == "id") {
+              string a = args[0];
+              while (alias.find(a) != alias.end())
+                a = alias[a];
+              alias[dest] = a;
             }
-          }
-          if (args.size()) {
-            json new_args;
-            for (auto a : args) {
-              string v = vars[var2num[a]];
-              if (alias.find(v) != alias.end())
-                new_args.push_back(alias[v]);
-              else
-                new_args.push_back(v);
-            }
-            i->update_args(new_args);
+            erase_by_value(alias, dest);
+
+            vars.push_back(dest);
+            value2num[v] = vars.size() - 1;
+            var2num[dest] = vars.size() - 1;
           }
         }
-        i = i->get_next();
-      }
-    }
-
-    void dump_lvn() {
-      cout << "vars: " << endl;
-      for (int i = 0; i < vars.size(); ++i)
-        cout << (i == 0 ? "" : ",") << vars[i];
-      cout << endl;
-
-      cout << "var2num: " << endl;
-      for (auto &[v, n] : var2num) {
-        cout << v << " : " << n << endl;
-      }
-
-      cout << "value2num: " << endl;
-      for (auto &[value, n] : value2num) {
-        cout << get<0>(value) << " ";
-        for (auto i : get<1>(value)) {
-          cout << i << " ";
+        if (args.size()) {
+          json new_args;
+          for (auto a : args) {
+            string v = vars[var2num[a]];
+            if (alias.find(v) != alias.end())
+              new_args.push_back(alias[v]);
+            else
+              new_args.push_back(v);
+          }
+          i->update_args(new_args);
         }
-        cout << " : " << n << endl;
       }
-      return;
+      i = i->get_next();
+    }
+  }
+
+  void get_defs(var2instset &defs) {
+    instruction *i = head;
+    while (i != nullptr) {
+      string def = i->get_def();
+      if (def != "") {
+        set<instruction *> vi;
+        vi.insert(i);
+        defs[def] = vi;
+      }
+      i = i->get_next();
+    }
+  }
+
+  void dump_lvn() {
+    cout << "vars: " << endl;
+    for (int i = 0; i < vars.size(); ++i)
+      cout << (i == 0 ? "" : ",") << vars[i];
+    cout << endl;
+
+    cout << "var2num: " << endl;
+    for (auto &[v, n] : var2num) {
+      cout << v << " : " << n << endl;
     }
 
-    json to_json() {
-      instruction *i = head;
-      json insts = json::array();
-      while (i != nullptr) {
-        insts.push_back(i->get_data());
-        i = i->get_next();
+    cout << "value2num: " << endl;
+    for (auto &[value, n] : value2num) {
+      cout << get<0>(value) << " ";
+      for (auto i : get<1>(value)) {
+        cout << i << " ";
       }
-      return insts;
+      cout << " : " << n << endl;
     }
-    void dump() {
-      instruction *i = head;
-      while (i != nullptr) {
-        i->dump();
-        i = i->get_next();
-      }
+    return;
+  }
+
+  json to_json() {
+    instruction *i = head;
+    json insts = json::array();
+    while (i != nullptr) {
+      insts.push_back(i->get_data());
+      i = i->get_next();
     }
-  };
+    return insts;
+  }
+  void dump() {
+    instruction *i = head;
+    while (i != nullptr) {
+      i->dump();
+      i = i->get_next();
+    }
+  }
+};
 
 #endif // INSTRUCTION_H_
