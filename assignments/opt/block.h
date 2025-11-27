@@ -32,6 +32,9 @@ public:
     idx = n;
     name = nm;
   }
+
+  void set_dom_self() { dom.insert(this); }
+
   string get_name() { return name; }
   int get_index() { return idx; }
   void append(instruction *inst) { ilst.append(inst); }
@@ -119,7 +122,13 @@ public:
 
   json to_json() { return ilst.to_json(); }
   void dump() {
-    cout << idx << " : " << name << endl;
+    cout << "// " <<  idx << " : " << name << endl;
+    cout << "// dominators: ";
+    for (auto &b : dom) {
+      cout << b->get_name() << ",";
+    }
+    cout << endl;
+
     ilst.dump();
   }
 };
@@ -236,8 +245,10 @@ public:
 
   void collect_dominators() {
     bool changed = false;
+    head->set_dom_self();
     do {
-      block *b = head;
+      changed = false;
+      block *b = head->get_next();
       while (b != nullptr) {
         if (b->collect_dominators())
           changed = true;

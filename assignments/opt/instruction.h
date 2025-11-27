@@ -93,7 +93,7 @@ public:
   }
   void update_args(json args) { data["args"] = args; }
 
-  __attribute__((noinline)) void dump() { cout << data << endl; }
+  __attribute__((noinline)) void dump() { cout << "// " <<  data << endl; }
 };
 
 class inst_list {

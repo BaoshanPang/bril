@@ -6,10 +6,10 @@ CXXFLAGS = -g -MMD -MP -DLVN
 test: simple reassign
 
 simple: opt
-	bril2json < ../../examples/test/tdce/simple.bril | ./opt | brili -p
+	bril2json < ../../examples/test/tdce/simple.bril | ./opt | sed "s#//.*##g" | brili -p
 
 reassign: opt
-	bril2json < ../../examples/test/tdce/reassign.bril | ./opt | brili -p
+	bril2json < ../../examples/test/tdce/reassign.bril | ./opt | sed "s#//.*##g" | brili -p
 
 opt: $(OBJECTS)
 	g++  $(OBJECTS) -o $@

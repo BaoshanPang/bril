@@ -57,7 +57,7 @@ public:
   void dce_reassign() { blst.dce_reassign(); }
   void lvn() { blst.lvn(); }
 
-  void collect_dominator() { blst.collect_dominators(); }
+  void collect_dominators() { blst.collect_dominators(); }
 
   void reaching_defs();
   void dump() { blst.dump(); }

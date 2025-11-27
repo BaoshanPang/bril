@@ -13,6 +13,8 @@ auto main(int argc, char *argv[]) -> int {
     g->lvn();
     g->dce();
     g->dce_reassign();
+    g->collect_dominators();
+    g->dump();
 #endif
     funcs.push_back(g->to_json());
   }
