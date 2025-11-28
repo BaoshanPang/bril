@@ -18,7 +18,8 @@ private:
   set<block *> succs;
   var2instset out_defs;
   var2instset defs; //
-  set<block *> dom;
+  set<block *> doms;
+  block *idom = nullptr;
 
 public:
   block() { prev = next = nullptr; }
@@ -33,7 +34,7 @@ public:
     name = nm;
   }
 
-  void set_dom_self() { dom.insert(this); }
+  void set_dom_self() { doms.insert(this); }
 
   string get_name() { return name; }
   int get_index() { return idx; }
@@ -92,27 +93,46 @@ public:
 
   var2instset *get_out_defs() { return &out_defs; }
 
-  set<block *> *get_dom() { return &dom; }
+  set<block *> *get_dom() { return &doms; }
+
+  block *get_idom() {
+    if (idom != nullptr)
+      return idom;
+    else {
+      block *id = nullptr;
+      for (auto &b : doms) {
+        if (b == this)
+          continue;
+        if (id == nullptr)
+          id = b;
+        else if (b->get_dom()->size() > id->get_dom()->size()) {
+          id = b;
+        }
+      }
+      return id;
+    }
+  }
 
   bool collect_dominators() {
-    int orig_size = dom.size();
+    int orig_size = doms.size();
     bool inited = false;
     for (auto &p : preds) {
       set<block *> *pd = p->get_dom();
       if(pd->size() == 0) continue;
       if (!inited) {
-        dom = *pd;
+        doms = *pd;
         inited = true;
       } else {
-        for (auto it = dom.begin(); it != dom.end();) {
+        for (auto it = doms.begin(); it != doms.end();) {
           if (pd->count(*it) == 0) {
-            it = dom.erase(it);
+            it = doms.erase(it);
           } else
             ++it;
         }
       }
     }
-    return dom.size() != orig_size;
+    doms.insert(this);
+    return doms.size() != orig_size;
   }
 
   void dump_lvn() {
@@ -124,11 +144,12 @@ public:
   void dump() {
     cout << "// " <<  idx << " : " << name << endl;
     cout << "// dominators: ";
-    for (auto &b : dom) {
+    for (auto &b : doms) {
       cout << b->get_name() << ",";
     }
     cout << endl;
-
+    block *id = get_idom();
+    cout << "//  idom: " << (id == nullptr ? "null" : id->get_name()) << endl;
     ilst.dump();
   }
 };
@@ -243,6 +264,14 @@ public:
     }
   }
 
+  void get_idom() {
+    block *b = head;
+    while (b != nullptr) {
+      b->get_idom();
+      b = b->get_next();
+    }
+  }
+
   void collect_dominators() {
     bool changed = false;
     head->set_dom_self();
@@ -255,6 +284,7 @@ public:
         b = b->get_next();
       }
     } while (changed);
+    get_idom();
   }
 
   json to_json() {
