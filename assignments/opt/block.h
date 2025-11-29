@@ -20,6 +20,8 @@ private:
   var2instset defs; //
   set<block *> doms;
   block *idom = nullptr;
+  set<block *> children_of_dom;
+  set<block *> df; // dominator fronter
 
 public:
   block() { prev = next = nullptr; }
@@ -135,6 +137,33 @@ public:
     return doms.size() != orig_size;
   }
 
+  void add_dom_child(block *b) { children_of_dom.insert(b); }
+
+  set<block *>* get_dom_children() { return &children_of_dom; }
+
+  void find_df() {
+    queue<block *> wklist;
+    set<block *> processed;
+
+    wklist.push(this);
+    processed.insert(this);
+    while (!wklist.empty()) {
+      block *b = wklist.front();
+      wklist.pop();
+
+      set<block *> *ss = b->get_succs();
+      for (auto &s : *ss) {
+        if(processed.count(s) != 0) continue;
+        if (s->get_dom()->count(this) != 0) {
+          wklist.push(s);
+          processed.insert(s);
+        } else {
+          df.insert(s);
+        }
+      }
+    }
+  }
+
   void dump_lvn() {
     cout << "block: " << endl;
     ilst.dump_lvn();
@@ -142,12 +171,18 @@ public:
 
   json to_json() { return ilst.to_json(); }
   void dump() {
-    cout << "// " <<  idx << " : " << name << endl;
+    cout << "// block_" <<  idx << " : " << name << endl;
     cout << "// dominators: ";
     for (auto &b : doms) {
       cout << b->get_name() << ",";
     }
     cout << endl;
+    cout << "// dominator frontier: ";
+    for (auto &b : df) {
+      cout << b->get_name() << ",";
+    }
+    cout << endl;
+
     block *id = get_idom();
     cout << "//  idom: " << (id == nullptr ? "null" : id->get_name()) << endl;
     ilst.dump();
@@ -285,6 +320,38 @@ public:
       }
     } while (changed);
     get_idom();
+  }
+
+  void create_dom_tree() {
+    block *b = head;
+    while (b != nullptr) {
+      block *ib = b->get_idom();
+      if(ib)
+        ib->add_dom_child(b);
+      b = b->get_next();
+    }
+  }
+
+  void get_df() {
+    block *b = head;
+    while (b != nullptr) {
+      b->find_df();
+      b = b->get_next();
+    }
+  }
+
+  void dom_tree_to_dot() {
+    ofstream fout("dom.dot");
+    fout << "digraph {" << endl;
+    output_block_name(fout);
+    block *b = head;
+    while (b != nullptr) {
+      for (auto &b1 : *b->get_dom_children()) {
+        fout << b->get_name() << " -> " << b1->get_name() << endl;
+      }
+      b = b->get_next();
+    }
+    fout << "}" << endl;
   }
 
   json to_json() {

@@ -59,8 +59,14 @@ public:
 
   void collect_dominators() { blst.collect_dominators(); }
 
+  void create_dom_tree() { blst.create_dom_tree(); }
+
+  void get_dom_frontier() { blst.get_df(); }
+
   void reaching_defs();
   void dump() { blst.dump(); }
+
+  void dom_tree_to_dot() { blst.dom_tree_to_dot(); }
 };
 
 #endif // CFG_H_
