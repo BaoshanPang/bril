@@ -6,12 +6,15 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <stack>
+#include <tuple>
 
 using namespace std;
 using json = nlohmann::json;
 
 class instruction;
 typedef map<string, set<instruction *>> var2instset;
+typedef map<string, tuple<int, stack<string>>> name_stack_map;
 
 class instruction {
 private:
@@ -52,6 +55,12 @@ public:
       return "";
   }
   void update_def(string dest) { data["dest"] = dest; }
+
+  void add_arg_and_label(string arg, string lab) {
+    data["args"].push_back(arg);
+    data["labels"].push_back(lab);
+  }
+
   string get_op() {
     if (data.contains("op"))
       return data["op"];
@@ -93,6 +102,15 @@ public:
   }
   void update_args(json args) { data["args"] = args; }
 
+  void ssa_rename(name_stack_map &nsm) {
+    if (data.contains("args") && data["op"] != "phi") {
+      for (int i = 0; i < data["args"].size(); ++i) {
+        string a = data["args"][i];
+        data["args"][i] = get<1>(nsm[a]).top();
+      }
+    }
+  }
+  
   __attribute__((noinline)) void dump() { cout << "// " <<  data << endl; }
 };
 
@@ -323,6 +341,30 @@ public:
         set<instruction *> vi;
         vi.insert(i);
         defs[def] = vi;
+      }
+      i = i->get_next();
+    }
+  }
+
+  void ssa_rename(name_stack_map &nsm) {
+    instruction *i = head;
+    while (i != nullptr) {
+      i->ssa_rename(nsm);
+
+      string d = i->get_def();
+      if (d != "") {
+        string name = get<1>(nsm[d]).top();
+        size_t pos = name.find(".");
+        int ver = get<0>(nsm[d]);
+        if (pos != string::npos) {
+          name = name.substr(0, pos) + "." + to_string(ver);
+        } else {
+          name = name + "." + to_string(ver);
+        }
+        get<0>(nsm[d]) = ver + 1;
+
+        i->update_def(name);
+        get<1>(nsm[d]).push(name);
       }
       i = i->get_next();
     }

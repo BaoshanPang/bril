@@ -195,6 +195,25 @@ public:
 
   block_set* get_df() { return &df; }
 
+  void ssa_update_phi(block *pred, name_stack_map &nsm) {
+    for (auto &[v, p] : var2phi) {
+      auto s = pred->get_out_defs();
+      if(s->find(v) != s->end())
+        p->add_arg_and_label(get<1>(nsm[v]).top(), pred->get_name());
+    }
+  }
+
+  void ssa_rename(name_stack_map &nsm) {
+    name_stack_map nsm0 = nsm;
+    ilst.ssa_rename(nsm0);
+    for (auto &s : succs) {
+      s->ssa_update_phi(this, nsm0);
+    }
+    for (auto b : children_of_dom) {
+      b->ssa_rename(nsm0);
+    }
+  }
+
   void dump_lvn() {
     cout << "block: " << endl;
     ilst.dump_lvn();
@@ -229,6 +248,7 @@ public:
     }
     cout << endl;
 
+    cout << "// inst: " << endl;
     ilst.dump();
   }
 };
@@ -390,6 +410,10 @@ public:
       b->find_df();
       b = b->get_next();
     }
+  }
+
+  void ssa_rename(name_stack_map &nsm) {
+    head->ssa_rename(nsm);
   }
 
   void dom_tree_to_dot() {

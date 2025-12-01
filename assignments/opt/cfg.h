@@ -1,8 +1,10 @@
 #ifndef CFG_H_
 #define CFG_H_
 #include "block.h"
+#include "instruction.h"
 #include <map>
 #include <fstream>
+#include <stack>
 
 class cfg {
 private:
@@ -10,6 +12,7 @@ private:
   block_list blst;
   name2block_map name2block;
   var2blks_map var2blks;
+  name_stack_map namestack;
 
 public:
   cfg(json func) {
@@ -68,6 +71,8 @@ public:
 
   // SSA
   void ssa_insert_phi();
+  void ssa_init_name_stack();
+  void ssa_rename();
   void dump() {
     blst.dump();
 

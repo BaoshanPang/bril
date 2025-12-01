@@ -57,3 +57,17 @@ void cfg::ssa_insert_phi() {
     }
   } while (changed);
 }
+
+void cfg::ssa_init_name_stack() {
+  for (auto &[v, bs] : var2blks) {
+    stack<string> stk;
+    stk.push(v);
+    namestack[v] = make_tuple(0, stk);
+  }
+}
+
+
+void cfg::ssa_rename() {
+  ssa_init_name_stack();
+  blst.ssa_rename(namestack);
+}

@@ -16,9 +16,10 @@ auto main(int argc, char *argv[]) -> int {
     g->dce_reassign();
     g->collect_dominators();
     g->get_dom_frontier();
-    g->ssa_insert_phi();
-    g->dump();
     g->create_dom_tree();
+    g->ssa_insert_phi();
+    g->ssa_rename();
+    g->dump();
     g->dom_tree_to_dot();
 #endif
     funcs.push_back(g->to_json());
