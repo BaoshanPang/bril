@@ -113,6 +113,18 @@ public:
     count = 0;
   }
   instruction *get_last_inst() { return tail; }
+
+  void insert(instruction *inst) {
+    if (head && head->is_label()) {
+      inst->set_next(head->get_next());
+      head->set_next(inst);
+    } else {
+      inst->set_next(head);
+      head = inst;
+    }
+    count++;
+  }
+
   void append(instruction *inst) {
     if (head == nullptr) {
       head = tail = inst;

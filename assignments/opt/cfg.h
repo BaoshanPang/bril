@@ -9,6 +9,7 @@ private:
   string  name;
   block_list blst;
   name2block_map name2block;
+  var2blks_map var2blks;
 
 public:
   cfg(json func) {
@@ -64,7 +65,21 @@ public:
   void get_dom_frontier() { blst.get_df(); }
 
   void reaching_defs();
-  void dump() { blst.dump(); }
+
+  // SSA
+  void ssa_insert_phi();
+  void dump() {
+    blst.dump();
+
+    cout << "\n// var2blks:" << endl;
+    for (auto &[v, bs] : var2blks) {
+      cout << "// " << v << " : ";
+      for (auto b : bs) {
+        cout << b->get_name() << ",";
+      }
+      cout << endl;
+    }
+  }
 
   void dom_tree_to_dot() { blst.dom_tree_to_dot(); }
 };

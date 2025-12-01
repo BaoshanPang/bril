@@ -10,11 +10,13 @@ auto main(int argc, char *argv[]) -> int {
     g->dce();
     g->dce_reassign();
 #else
+    g->reaching_defs();
     g->lvn();
     g->dce();
     g->dce_reassign();
     g->collect_dominators();
     g->get_dom_frontier();
+    g->ssa_insert_phi();
     g->dump();
     g->create_dom_tree();
     g->dom_tree_to_dot();

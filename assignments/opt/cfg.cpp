@@ -37,4 +37,23 @@ void cfg::reaching_defs() {
       }
     }
   }
+
+  blst.gen_var2blks_map(var2blks);
+}
+
+void cfg::ssa_insert_phi() {
+  bool changed = false;
+  do {
+    for (auto &[v, bs] : var2blks) {
+      for (auto &b : bs) {
+        for (auto &df1 : *b->get_df()) {
+          df1->insert_phi(v);
+          if (var2blks.find(v) == var2blks.end()) {
+            var2blks[v].insert(df1);
+            changed = true;
+          }
+        }
+      }
+    }
+  } while (changed);
 }

@@ -6,7 +6,10 @@
 #include <queue>
 
 class block;
+typedef set<block *> block_set;
 typedef map<string, block *> name2block_map;
+typedef map<string, set<block *>> var2blks_map;
+
 class block {
 private:
   int idx;
@@ -21,8 +24,9 @@ private:
   set<block *> doms;
   block *idom = nullptr;
   set<block *> children_of_dom;
-  set<block *> df; // dominator fronter
-
+  block_set df; // dominator fronter
+  // SSA
+  map<string, instruction *> var2phi;
 public:
   block() { prev = next = nullptr; }
   block(int n) {
@@ -34,6 +38,18 @@ public:
     prev = next = nullptr;
     idx = n;
     name = nm;
+  }
+
+  void insert_phi(const string &v) {
+    if (var2phi.find(v) != var2phi.end())
+      return;
+    json phi;
+    phi["op"] = "phi";
+    phi["type"] = "int";
+    phi["dest"] = v;
+    instruction *i = new instruction(phi);
+    ilst.insert(i);
+    var2phi[v] = i;
   }
 
   void set_dom_self() { doms.insert(this); }
@@ -94,6 +110,19 @@ public:
   }
 
   var2instset *get_out_defs() { return &out_defs; }
+
+
+  void gen_var2blks_map(var2blks_map &v2bs) {
+    for (auto &[v, bs] : defs) {
+      if (v2bs.find(v) == v2bs.end()) {
+        block_set bs;
+        bs.insert(this);
+        v2bs[v] = bs;
+      } else {
+        v2bs[v].insert(this);
+      }
+    }
+  }
 
   set<block *> *get_dom() { return &doms; }
 
@@ -164,6 +193,8 @@ public:
     }
   }
 
+  block_set* get_df() { return &df; }
+
   void dump_lvn() {
     cout << "block: " << endl;
     ilst.dump_lvn();
@@ -183,8 +214,21 @@ public:
     }
     cout << endl;
 
-    block *id = get_idom();
-    cout << "//  idom: " << (id == nullptr ? "null" : id->get_name()) << endl;
+    cout << "// idom: " << (idom == nullptr ? "null" : idom->get_name())
+         << endl;
+
+    cout << "// defs: ";
+    for (auto &[v, is] : defs) {
+      cout << v << ",";
+    }
+    cout << endl;
+
+    cout << "// out_defs: ";
+    for (auto &[v, is] : out_defs) {
+      cout << v << ",";
+    }
+    cout << endl;
+
     ilst.dump();
   }
 };
@@ -227,6 +271,14 @@ public:
     block *b = head;
     while (b != nullptr) {
       b->get_uses(uses);
+      b = b->get_next();
+    }
+  }
+
+  void gen_var2blks_map(var2blks_map &v2bs) {
+    block *b = head;
+    while (b != nullptr) {
+      b->gen_var2blks_map(v2bs);
       b = b->get_next();
     }
   }
@@ -369,6 +421,7 @@ public:
     block *b = head;
     while (b != nullptr) {
       b->dump();
+      cout << endl;
       b = b->get_next();
     }
   }
