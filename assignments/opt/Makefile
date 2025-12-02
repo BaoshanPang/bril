@@ -1,4 +1,4 @@
-SOURCES = opt.cpp cfg.cpp
+SOURCES = opt.cpp cfg.cpp instruction.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
 CXXFLAGS = -g -MMD -MP -DLVN

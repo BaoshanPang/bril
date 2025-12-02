@@ -73,6 +73,8 @@ public:
   void ssa_insert_phi();
   void ssa_init_name_stack();
   void ssa_rename();
+  void ssa_remove_phi();
+
   void dump() {
     blst.dump();
 

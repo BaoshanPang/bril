@@ -71,3 +71,7 @@ void cfg::ssa_rename() {
   ssa_init_name_stack();
   blst.ssa_rename(namestack);
 }
+
+void cfg::ssa_remove_phi() {
+   blst.ssa_remove_phi();
+}

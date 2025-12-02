@@ -52,6 +52,12 @@ public:
     var2phi[v] = i;
   }
 
+  void append_inst(instruction *i) { ilst.append(i); }
+
+  void append_inst_before_last_jmp(instruction *i) {
+    ilst.append_before_last_jmp(i);
+  }
+
   void set_dom_self() { doms.insert(this); }
 
   string get_name() { return name; }
@@ -212,6 +218,10 @@ public:
     for (auto b : children_of_dom) {
       b->ssa_rename(nsm0);
     }
+  }
+
+  void ssa_remove_phi() {
+    ilst.ssa_remove_phi(this);
   }
 
   void dump_lvn() {
@@ -412,8 +422,14 @@ public:
     }
   }
 
-  void ssa_rename(name_stack_map &nsm) {
-    head->ssa_rename(nsm);
+  void ssa_rename(name_stack_map &nsm) { head->ssa_rename(nsm); }
+
+  void ssa_remove_phi() {
+    block *b = head;
+    while (b != nullptr) {
+      b->ssa_remove_phi();
+      b = b->get_next();
+    }
   }
 
   void dom_tree_to_dot() {

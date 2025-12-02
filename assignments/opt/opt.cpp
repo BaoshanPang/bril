@@ -19,6 +19,7 @@ auto main(int argc, char *argv[]) -> int {
     g->create_dom_tree();
     g->ssa_insert_phi();
     g->ssa_rename();
+    g->ssa_remove_phi();
     g->dump();
     g->dom_tree_to_dot();
 #endif

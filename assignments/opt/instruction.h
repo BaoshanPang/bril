@@ -13,6 +13,7 @@ using namespace std;
 using json = nlohmann::json;
 
 class instruction;
+class block;
 typedef map<string, set<instruction *>> var2instset;
 typedef map<string, tuple<int, stack<string>>> name_stack_map;
 
@@ -134,10 +135,14 @@ public:
 
   void insert(instruction *inst) {
     if (head && head->is_label()) {
-      inst->set_next(head->get_next());
+      instruction *si = head->get_next();
+      inst->set_next(si);
+      si->set_prev(inst);
       head->set_next(inst);
+      inst->set_prev(head);
     } else {
       inst->set_next(head);
+      head->set_prev(inst);
       head = inst;
     }
     count++;
@@ -153,6 +158,29 @@ public:
     }
     count++;
   }
+
+  void append_before_last_jmp(instruction *inst) {
+    if (head == nullptr) {
+      head = tail = inst;
+    } else {
+      if (tail->is_branch() || tail->is_jmp()) {
+        instruction *prev = tail->get_prev();
+        if (prev)
+          prev->set_next(inst);
+        else
+          head = inst;
+        tail->set_prev(inst);
+        inst->set_next(tail);
+        inst->set_prev(prev);
+      } else {
+        tail->set_next(inst);
+        inst->set_prev(tail);
+        tail = inst;
+      }
+    }
+    count++;
+  }
+
   size_t get_count() { return count; }
   void get_uses(set<string> &uses) {
     instruction *i = head;
@@ -369,6 +397,21 @@ public:
       i = i->get_next();
     }
   }
+
+  instruction* unlink_instruction(instruction *i) {
+    instruction *p = i->get_prev();
+    instruction *n = i->get_next();
+    if (p)
+      p->set_next(n);
+    else
+      head = n;
+    if (n)
+      n->set_prev(p);
+    return n;
+  }
+
+
+  void ssa_remove_phi(block *b);
 
   void dump_lvn() {
     cout << "vars: " << endl;
