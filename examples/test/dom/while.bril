@@ -6,7 +6,10 @@
 .while.body:
   one: int = const 1;
   a: int = sub a one;
+.while.body.2:
   jmp .while.cond;
 .while.finish:
+  print a;
+.while.finish.2:
   print a;
 }

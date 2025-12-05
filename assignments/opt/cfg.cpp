@@ -75,3 +75,12 @@ void cfg::ssa_rename() {
 void cfg::ssa_remove_phi() {
    blst.ssa_remove_phi();
 }
+
+void cfg::licm() {
+  // find the loop
+  // back edge: A point to B(B is A's successor) and B dominate A
+  blst.find_back_edges();
+
+  // find invariant code
+  // move ic to pre-header
+}

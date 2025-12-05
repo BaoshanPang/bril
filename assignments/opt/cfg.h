@@ -75,6 +75,9 @@ public:
   void ssa_rename();
   void ssa_remove_phi();
 
+  // Loop Invariant Code Motion
+  void licm();
+
   void dump() {
     blst.dump();
 

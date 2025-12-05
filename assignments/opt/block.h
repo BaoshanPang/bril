@@ -432,6 +432,64 @@ public:
     }
   }
 
+  bool in_the_loop(set<block *> &loop, block *b) {
+    for (auto p : *b->get_preds()) {
+      if (loop.find(p) == loop.end()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void find_back_edges() {
+    block *b = head;
+    while (b != nullptr) {
+      auto ss = b->get_succs();
+      for (auto s : *ss) {
+        auto d = b->get_dom();
+        if (d->find(s) != d->end()) {
+          cout << "// back edge: " << b->get_name() << " -> " << s->get_name()
+               << endl;
+          set<block *> blks_in_loop;
+          blks_in_loop.insert(b);
+          blks_in_loop.insert(s);
+
+          queue<block *> worklist;
+          worklist.push(s->get_next());
+
+          bool valid = true;
+          while (!worklist.empty()) {
+            auto b0 = worklist.front();
+            worklist.pop();
+            if (blks_in_loop.find(b0) != blks_in_loop.end())
+              continue;
+            if (in_the_loop(blks_in_loop, b0)) {
+              blks_in_loop.insert(b0);
+              for (auto x : *b0->get_succs()) {
+                worklist.push(x);
+              }
+            } else {
+              valid = false;
+              break;
+            }
+          }
+          if (valid) {
+            dump_loop(blks_in_loop);
+          }
+        }
+      }
+      b = b->get_next();
+    }
+  }
+
+  void dump_loop(set<block *> loop) {
+    cout << "// loop: ";
+    for (auto b : loop) {
+      cout << b->get_name() << " ";
+    }
+    cout << endl;
+  }
+
   void dom_tree_to_dot() {
     ofstream fout("dom.dot");
     fout << "digraph {" << endl;
